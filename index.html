@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Zeta Network - WASM Demo</title>
+<style>
+  body { font-family: monospace; max-width: 800px; margin: 50px auto; padding: 0 20px; background: #111; color: #0f0; }
+  h1 { border-bottom: 1px solid #333; padding-bottom: 10px; }
+  .section { margin: 25px 0; padding: 15px; border: 1px solid #333; border-radius: 5px; }
+  button { padding: 8px 16px; cursor: pointer; background: #0f0; color: #111; border: none; border-radius: 3px; font-weight: bold; margin: 5px 0; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  pre { background: #222; padding: 10px; overflow-x: auto; white-space: pre-wrap; word-break: break-all; font-size: 12px; max-height: 200px; overflow-y: auto; }
+  .small { font-size: 12px; color: #888; }
+</style>
+</head>
+<body>
+
+<h1>Zeta Network - Rust → WebAssembly</h1>
+<p class="small">Code Rust compile en .wasm, execute dans le navigateur via Flask</p>
+
+<div class="section">
+  <h3>1. Generer des cles ed25519</h3>
+  <button id="btnGenerate">Generate Keys</button>
+  <pre id="keysOutput">Cliquez pour generer...</pre>
+</div>
+
+<div class="section">
+  <h3>2. Signer un message</h3>
+  <button id="btnSign">Sign Message</button>
+  <pre id="signOutput">Cliquez pour signer...</pre>
+</div>
+
+<div class="section">
+  <h3>3. Verifier un message</h3>
+  <button id="btnVerify">Verify Signature</button>
+  <pre id="verifyOutput">Cliquez pour verifier...</pre>
+</div>
+
+<div class="section">
+  <h3>4. Utilitaires</h3>
+  <pre id="utilsOutput">Chargement...</pre>
+</div>
+
+<script type="module">
+import init, {
+  WasmAuthKeys,
+  sign_message,
+  verify_message,
+  peer_id_from_verifying_key_hex,
+  fmt_time,
+  now_secs,
+  new_msg_id
+} from '/static/zeta_wasm.js';
+
+let keys;
+
+async function main() {
+  try {
+    await init();
+    document.querySelector('#utilsOutput').textContent =
+      `now_secs()  → ${now_secs()}\n` +
+      `new_msg_id()→ ${new_msg_id()}\n` +
+      `new_msg_id()→ ${new_msg_id()}\n` +
+      `fmt_time(3723)→ "${fmt_time(3723n)}"`;
+  } catch(e) {
+    document.querySelector('#utilsOutput').textContent = 'Erreur init WASM: ' + e;
+    document.querySelectorAll('button').forEach(b => b.disabled = true);
+  }
+}
+
+document.getElementById('btnGenerate').onclick = () => {
+  keys = WasmAuthKeys.generate();
+  document.getElementById('keysOutput').textContent =
+    `Signing Key (hex)  : ${keys.signing_key_hex()}\n` +
+    `Verifying Key (hex): ${keys.verifying_key_hex()}\n` +
+    `Peer ID             : ${peer_id_from_verifying_key_hex(keys.verifying_key_hex())}`;
+};
+
+document.getElementById('btnSign').onclick = () => {
+  if (!keys) { alert('Generer des cles d\'abord'); return; }
+  const message = JSON.stringify({
+    headers: {
+      msg_id: Number(new_msg_id()),
+      src_addr: "127.0.0.1:12345",
+      src_username: "alice",
+      dst_addr: "192.168.1.1:55555",
+      dst_username: "bob",
+      time: Number(now_secs()),
+      signature: []
+    },
+    payload: { Classic: { txt: "Hello depuis WASM!" } },
+    last_hop: "0.0.0.0:0"
+  });
+  const signed = sign_message(message, keys.signing_key_hex());
+  const obj = JSON.parse(signed);
+  document.getElementById('signOutput').textContent =
+    `Message signe reussi!\n` +
+    `Signature (hex): ${obj.headers.signature.map(b => String.fromCharCode(b)).join('')}`;
+};
+
+document.getElementById('btnVerify').onclick = () => {
+  if (!keys) { alert('Generer des cles d\'abord'); return; }
+  const message = JSON.stringify({
+    headers: {
+      msg_id: Number(new_msg_id()),
+      src_addr: "127.0.0.1:12345",
+      src_username: "alice",
+      dst_addr: "192.168.1.1:55555",
+      dst_username: "bob",
+      time: Number(now_secs()),
+      signature: []
+    },
+    payload: { Classic: { txt: "Hello depuis WASM!" } },
+    last_hop: "0.0.0.0:0"
+  });
+  const signed = sign_message(message, keys.signing_key_hex());
+  const valid = verify_message(signed, keys.verifying_key_hex());
+  document.getElementById('verifyOutput').textContent =
+    `Signature valide: ${valid}`;
+};
+
+main();
+</script>
+</body>
+</html>

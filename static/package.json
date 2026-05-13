@@ -1,0 +1,15 @@
+{
+  "name": "zeta_wasm",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "zeta_wasm_bg.wasm",
+    "zeta_wasm.js",
+    "zeta_wasm.d.ts"
+  ],
+  "main": "zeta_wasm.js",
+  "types": "zeta_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}
